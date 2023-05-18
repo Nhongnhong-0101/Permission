@@ -29,6 +29,8 @@ import android.Manifest;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final int READ_CONTACTS_REQUEST_CODE = 1001;
+    private static final int WRITE_CONTACTS_REQUEST_CODE = 1002;
+
     private static final int CONTACT_LOADER = 1;
     private boolean isASC = true;
     private contactListAdapter contactListAdapter;
@@ -60,6 +62,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         );
 
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, READ_CONTACTS_REQUEST_CODE);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
+
         loadContacts();
 
     }
@@ -78,8 +82,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         switch (id)
         {
             case R.id.btnNewPhone:
-                Intent intent = new Intent(MainActivity.this, NewPhoneNumber.class);
-                startActivity(intent);
+                if (ActivityCompat.checkSelfPermission(this,Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
+            }
+                fromNew.launch(new Intent(MainActivity.this, NewPhoneNumber.class));
                 break;
             case R.id.btnASC:
                 isASC = true;
@@ -98,7 +104,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         super.onRequestPermissionsResult(requestCode, permission, grantResults);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, READ_CONTACTS_REQUEST_CODE);
-        } else {
+
+        }
+        else {
             // Quyền đã được cấp, tải danh bạ
             loadContacts();
 
