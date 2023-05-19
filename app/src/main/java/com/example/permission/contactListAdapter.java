@@ -39,8 +39,8 @@ public class contactListAdapter extends ArrayAdapter<ContactItem> {
         TextView tvName = v.findViewById(R.id.contact_name);
         TextView tvPhone= v.findViewById(R.id.contact_number);
 
-        tvName.setText(t.getName());
-        tvPhone.setText(t.getPhone());
+        tvName.setText(t.getName().toString());
+        tvPhone.setText(t.getPhone().toString());
 
         return v;
     }

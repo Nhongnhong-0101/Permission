@@ -1,5 +1,7 @@
 package com.example.permission;
 
+import static android.content.ContentValues.TAG;
+
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -13,11 +15,14 @@ import androidx.loader.content.CursorLoader;
 import androidx.loader.content.Loader;
 
 import android.app.Activity;
+import android.content.ContentProviderOperation;
+import android.content.ContentProviderResult;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
@@ -30,12 +35,12 @@ import android.Manifest;
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final int READ_CONTACTS_REQUEST_CODE = 1001;
     private static final int WRITE_CONTACTS_REQUEST_CODE = 1002;
-
     private static final int CONTACT_LOADER = 1;
     private boolean isASC = true;
     private contactListAdapter contactListAdapter;
     List<ContactItem> contacts;
     ListView lvContacts;
+    String newName, newPhone;
 
     ActivityResultLauncher<Intent> fromNew;
 
@@ -55,6 +60,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                     @Override
                     public void onActivityResult(ActivityResult result) {
                         if (result.getResultCode() == Activity.RESULT_OK){
+                            Intent intent = result.getData();
+                            newName = intent.getExtras().getString("name");
+                            newPhone  = intent.getExtras().getString("phone");
+                            saveContacts(newName, newPhone);
                             loadContacts();
                         }
                     }
@@ -63,7 +72,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, READ_CONTACTS_REQUEST_CODE);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
-
         loadContacts();
 
     }
@@ -82,10 +90,13 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         switch (id)
         {
             case R.id.btnNewPhone:
-                if (ActivityCompat.checkSelfPermission(this,Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
-            }
+                if (ActivityCompat.checkSelfPermission(this,Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                    boolean cap  = false;// de ktra
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
+                    cap = true;
+                }
                 fromNew.launch(new Intent(MainActivity.this, NewPhoneNumber.class));
+                contactListAdapter.notifyDataSetChanged();
                 break;
             case R.id.btnASC:
                 isASC = true;
@@ -102,14 +113,20 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     public  void onRequestPermissionResult (int requestCode, String permission[], int [] grantResults){
         super.onRequestPermissionsResult(requestCode, permission, grantResults);
+        //ktra quyền đọc danh bạ được cấp chưa
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, READ_CONTACTS_REQUEST_CODE);
-
+            //Kiem tr dduocj ghi k
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
+            }
+            else {
+                boolean cap = true;
+            }
         }
         else {
-            // Quyền đã được cấp, tải danh bạ
+            // Quyền đọc đã được cấp, tải danh bạ
             loadContacts();
-
         }
         return;
     }
@@ -163,4 +180,50 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     public void onLoaderReset(@NonNull Loader<Cursor> loader) {
         loader = null;
     }
+
+    public  void saveContacts (String name, String phone){
+
+
+        ArrayList<ContentProviderOperation> cpo = new ArrayList<>();
+
+        //them ten
+        cpo.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.RawContacts.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.RawContacts.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
+                .build());
+
+        //them so
+        cpo.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.RawContacts.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.RawContacts.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+                .build());
+
+        try {
+            ContentProviderResult[] results = getContentResolver().applyBatch(ContactsContract.AUTHORITY, cpo);
+
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            Log.d(TAG, "saveContact: " + e.getMessage());
+        }
+    }
+//    public  void onRequestPermissionResult (int requestCode, String permission[], int [] grantResults){
+//        super.onRequestPermissionsResult(requestCode, permission, grantResults);
+//        //ktra chưa đc cấp quyền thì yêu cầu cấp quyêền
+//        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CONTACTS}, WRITE_CONTACTS_REQUEST_CODE);
+//
+//        }
+//        else {
+//            // Quyền đã được cấp, tải danh bạ
+//            saveContacts();
+//
+//        }
+//        return;
+//    }
+
+
 }
